@@ -1,17 +1,28 @@
 import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
+import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { colors, spacing } from '../utils/theme';
-import { useAuthActions } from '../store/authStore';
+import { useAuthStore } from '../store/authStore';
+import { RootStackParamList } from '../types';
 
-export default function HomeScreen() {
-  const { signOut } = useAuthActions();
+type Props = NativeStackScreenProps<RootStackParamList, 'Home'>;
+
+export default function HomeScreen({ navigation }: Props) {
+  const signOut = useAuthStore((state) => state.signOut);
 
   return (
     <View style={styles.container}>
       <Text style={styles.title}>UradiSam AI 🛠️</Text>
       <Text style={styles.subtitle}>Dobrodošli u aplikaciju!</Text>
 
-      <TouchableOpacity style={styles.button} onPress={signOut}>
+      <TouchableOpacity
+        style={[styles.button, { backgroundColor: colors.primary }]}
+        onPress={() => navigation.navigate('Camera')}
+      >
+        <Text style={styles.buttonText}>Novi Popravak</Text>
+      </TouchableOpacity>
+
+      <TouchableOpacity style={[styles.button, styles.logoutButton]} onPress={signOut}>
         <Text style={styles.buttonText}>Odjavi se</Text>
       </TouchableOpacity>
     </View>
@@ -38,11 +49,17 @@ const styles = StyleSheet.create({
     marginBottom: spacing.xl,
   },
   button: {
+    width: '100%',
+    paddingVertical: spacing.md,
+    borderRadius: 12,
+    alignItems: 'center',
+    marginBottom: spacing.md,
+  },
+  logoutButton: {
     backgroundColor: colors.error,
-    paddingVertical: spacing.sm,
-    paddingHorizontal: spacing.lg,
-    borderRadius: 8,
-    marginTop: spacing.lg,
+    marginTop: spacing.xl,
+    width: 'auto',
+    paddingHorizontal: spacing.xl,
   },
   buttonText: {
     color: colors.surface,

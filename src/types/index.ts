@@ -29,4 +29,6 @@ export interface TaskResponse {
 export type RootStackParamList = {
   Home: undefined;
   Auth: undefined;
+  Camera: undefined;
+  AnalysisResult: { taskId: string };
 };

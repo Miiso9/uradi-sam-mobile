@@ -37,12 +37,3 @@ export const useAuthStore = create<AuthState & AuthActions>((set) => ({
     set({ ...initialState, isInitialized: true });
   },
 }));
-
-export const useAuthUser = () => useAuthStore((state) => state.user);
-export const useAuthIsInitialized = () => useAuthStore((state) => state.isInitialized);
-export const useAuthActions = () =>
-  useAuthStore((state) => ({
-    signOut: state.signOut,
-    setSession: state.setSession,
-    initializeAuth: state.initializeAuth,
-  }));
