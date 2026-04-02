@@ -1,69 +1,56 @@
 import React from 'react';
-import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
-import { NativeStackScreenProps } from '@react-navigation/native-stack';
-import { colors, spacing } from '../utils/theme';
-import { useAuthStore } from '../store/authStore';
-import { RootStackParamList } from '../types';
+import { View, Text, StyleSheet, ScrollView } from 'react-native';
+import { colors, spacing, globalStyles } from '../utils/theme';
+import { Ionicons } from '@expo/vector-icons';
 
-type Props = NativeStackScreenProps<RootStackParamList, 'Home'>;
-
-export default function HomeScreen({ navigation }: Props) {
-  const signOut = useAuthStore((state) => state.signOut);
-
+export default function HomeScreen() {
   return (
-    <View style={styles.container}>
-      <Text style={styles.title}>UradiSam AI 🛠️</Text>
-      <Text style={styles.subtitle}>Dobrodošli u aplikaciju!</Text>
+    <ScrollView style={styles.container} contentContainerStyle={{ padding: spacing.md }}>
+      <Text style={styles.title}>Dobrodošli u Garažu 🛠️</Text>
+      <Text style={styles.subtitle}>Tvoj osobni asistent za popravke je spreman.</Text>
 
-      <TouchableOpacity
-        style={[styles.button, { backgroundColor: colors.primary }]}
-        onPress={() => navigation.navigate('Camera')}
-      >
-        <Text style={styles.buttonText}>Novi Popravak</Text>
-      </TouchableOpacity>
-
-      <TouchableOpacity style={[styles.button, styles.logoutButton]} onPress={signOut}>
-        <Text style={styles.buttonText}>Odjavi se</Text>
-      </TouchableOpacity>
-    </View>
+      <View style={styles.card}>
+        <Ionicons name="chatbubbles" size={40} color={colors.primary} />
+        <Text style={styles.cardTitle}>Kako koristiti aplikaciju?</Text>
+        <Text style={styles.cardText}>
+          1. Prebaci se na tab "AI Majstor" na dnu ekrana.{'\n'}
+          2. Uslikaj kvar ili odaberi sliku iz galerije.{'\n'}
+          3. Napiši kratki opis (npr. "Zašto mi perilica curi?").{'\n'}
+          4. AI će prepoznati problem, dati rješenje i ponuditi alate!
+        </Text>
+      </View>
+    </ScrollView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: colors.background,
-    alignItems: 'center',
-    justifyContent: 'center',
-    padding: spacing.md,
-  },
-  title: {
-    fontSize: 28,
-    fontWeight: 'bold',
-    color: colors.text,
-  },
+  container: { flex: 1, backgroundColor: colors.background },
+  title: { fontSize: 28, fontWeight: 'bold', color: colors.text, marginTop: spacing.lg },
   subtitle: {
     fontSize: 16,
     color: colors.textSecondary,
     marginTop: spacing.sm,
     marginBottom: spacing.xl,
   },
-  button: {
-    width: '100%',
-    paddingVertical: spacing.md,
-    borderRadius: 12,
+  card: {
+    backgroundColor: colors.surface,
+    padding: spacing.lg,
+    borderRadius: 16,
+    ...globalStyles.shadow,
     alignItems: 'center',
-    marginBottom: spacing.md,
   },
-  logoutButton: {
-    backgroundColor: colors.error,
-    marginTop: spacing.xl,
-    width: 'auto',
-    paddingHorizontal: spacing.xl,
-  },
-  buttonText: {
-    color: colors.surface,
+  cardTitle: {
+    fontSize: 18,
     fontWeight: 'bold',
+    color: colors.text,
+    marginTop: spacing.md,
+    marginBottom: spacing.sm,
+  },
+  cardText: {
     fontSize: 16,
+    color: colors.textSecondary,
+    lineHeight: 24,
+    textAlign: 'left',
+    width: '100%',
   },
 });

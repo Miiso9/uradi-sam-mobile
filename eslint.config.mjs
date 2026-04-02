@@ -24,7 +24,7 @@ export default tseslint.config(
         },
         rules: {
             'react-native/no-unused-styles': 'warn',
-            'no-console': 'warn',
+            'no-console': 'off',
             '@typescript-eslint/no-require-imports': 'off',
         },
     },
