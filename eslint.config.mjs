@@ -6,6 +6,9 @@ import prettierPlugin from 'eslint-plugin-prettier/recommended';
 import globals from 'globals';
 
 export default tseslint.config(
+    {
+        ignores: ['babel.config.js', 'metro.config.js', 'eslint.config.mjs'],
+    },
     js.configs.recommended,
     ...tseslint.configs.recommended,
     {

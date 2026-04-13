@@ -7,17 +7,22 @@ import {
   TouchableOpacity,
   Image,
   ScrollView,
-  ActivityIndicator,
   Linking,
   KeyboardAvoidingView,
   Platform,
   Alert,
+  StatusBar,
 } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import * as ImagePicker from 'expo-image-picker';
+import * as Haptics from 'expo-haptics';
 import { Ionicons } from '@expo/vector-icons';
-import { colors, spacing, globalStyles } from '../utils/theme';
 import { supabase } from '../services/supabase';
+import { ThemedText } from '../components/ThemedText';
+import { ThemedCard } from '../components/ThemedCard';
+import { useTheme } from '../context/ThemeContext';
+import { AnimatedLoader } from '../components/AnimatedLoader';
+import { spacing, borderRadius, shadows } from '../utils/theme';
 
 interface B2BData {
   expert_number?: string;
@@ -64,6 +69,7 @@ export default function AIChatScreen() {
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
   const [activeTaskId, setActiveTaskId] = useState<string | null>(null);
   const scrollViewRef = useRef<ScrollView>(null);
+  const { colors } = useTheme();
 
   useFocusEffect(
     useCallback(() => {
@@ -82,13 +88,11 @@ export default function AIChatScreen() {
 
     const pollTask = async () => {
       if (!activeTaskId || !isMounted) return;
-
       try {
         const response = await fetch(
           `${process.env.EXPO_PUBLIC_API_URL}/api/v1/tasks/${activeTaskId}`,
         );
         const json = await response.json();
-
         if (json.status === 'completed' || json.status === 'success') {
           setActiveTaskId(null);
           setMessages((prev) =>
@@ -101,12 +105,7 @@ export default function AIChatScreen() {
           setMessages((prev) =>
             prev.map((msg) =>
               msg.isLoading
-                ? {
-                    ...msg,
-                    isLoading: false,
-                    isError: true,
-                    text: 'Došlo je do greške u AI analizi.',
-                  }
+                ? { ...msg, isLoading: false, isError: true, text: 'Greška u AI analizi.' }
                 : msg,
             ),
           );
@@ -125,10 +124,7 @@ export default function AIChatScreen() {
       }
     };
 
-    if (activeTaskId) {
-      pollTask();
-    }
-
+    if (activeTaskId) pollTask();
     return () => {
       isMounted = false;
       if (timeoutId) clearTimeout(timeoutId);
@@ -139,9 +135,8 @@ export default function AIChatScreen() {
     const options: ImagePicker.ImagePickerOptions = {
       allowsEditing: true,
       aspect: [4, 3],
-      quality: 0.7,
+      quality: 0.75,
     };
-
     let result;
     if (useCamera) {
       const permission = await ImagePicker.requestCameraPermissionsAsync();
@@ -153,14 +148,12 @@ export default function AIChatScreen() {
     } else {
       result = await ImagePicker.launchImageLibraryAsync(options);
     }
-
-    if (!result.canceled) {
-      setSelectedImage(result.assets[0].uri);
-    }
+    if (!result.canceled) setSelectedImage(result.assets[0].uri);
   };
 
   const handleSend = async () => {
     if (!inputText && !selectedImage) return;
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
 
     const userMessageId = Date.now().toString();
     const aiMessageId = (Date.now() + 1).toString();
@@ -173,13 +166,11 @@ export default function AIChatScreen() {
 
     const textToSend = inputText;
     const imageToSend = selectedImage;
-
     setInputText('');
     setSelectedImage(null);
 
     try {
       const formData = new FormData();
-
       if (imageToSend) {
         const imageFile: FormDataValue = {
           uri: imageToSend,
@@ -188,13 +179,11 @@ export default function AIChatScreen() {
         };
         formData.append('image', imageFile as unknown as Blob);
       }
-
       formData.append('question', textToSend || 'Analiziraj ovu sliku.');
 
       const {
         data: { session },
       } = await supabase.auth.getSession();
-
       const response = await fetch(`${process.env.EXPO_PUBLIC_API_URL}/api/v1/analyze`, {
         method: 'POST',
         headers: { Authorization: `Bearer ${session?.access_token}` },
@@ -202,7 +191,6 @@ export default function AIChatScreen() {
       });
 
       const data = await response.json();
-
       if (response.ok && data.task_id) {
         setActiveTaskId(data.task_id);
       } else {
@@ -216,7 +204,7 @@ export default function AIChatScreen() {
                 ...msg,
                 isLoading: false,
                 isError: true,
-                text: 'Nisam mogao obraditi zahtjev. Molim pokušaj ponovno.',
+                text: 'Nisam mogao obraditi zahtjev. Pokušaj ponovo.',
               }
             : msg,
         ),
@@ -227,9 +215,8 @@ export default function AIChatScreen() {
   const extractLinkName = (url: string) => {
     try {
       const parts = url.split('keywords=');
-      if (parts.length > 1 && parts[1]) {
+      if (parts.length > 1 && parts[1])
         return 'Kupi: ' + decodeURIComponent(parts[1]).replace(/\+/g, ' ');
-      }
     } catch {
       return 'Naruči materijal';
     }
@@ -239,26 +226,37 @@ export default function AIChatScreen() {
   const renderMessage = (msg: Message) => {
     if (msg.role === 'user') {
       return (
-        <View key={msg.id} style={styles.userBubble}>
-          {msg.imageUri && <Image source={{ uri: msg.imageUri }} style={styles.chatImage} />}
-          {msg.text ? <Text style={styles.userText}>{msg.text}</Text> : null}
+        <View key={msg.id} style={styles.userMsgWrap}>
+          <View style={[styles.userBubble, { backgroundColor: colors.primary }, shadows.amberSm]}>
+            {msg.imageUri && <Image source={{ uri: msg.imageUri }} style={styles.chatImage} />}
+            {msg.text ? (
+              <Text style={[styles.userText, { color: colors.background }]}>{msg.text}</Text>
+            ) : null}
+          </View>
         </View>
       );
     }
 
     if (msg.isLoading) {
       return (
-        <View key={msg.id} style={styles.aiBubble}>
-          <ActivityIndicator color={colors.primary} />
-          <Text style={styles.loadingText}>Majstor razmišlja...</Text>
+        <View key={msg.id} style={styles.aiMsgWrap}>
+          <AnimatedLoader />
         </View>
       );
     }
 
     if (msg.isError) {
       return (
-        <View key={msg.id} style={[styles.aiBubble, { backgroundColor: '#fee2e2' }]}>
-          <Text style={{ color: colors.error }}>{msg.text}</Text>
+        <View key={msg.id} style={styles.aiMsgWrap}>
+          <View
+            style={[
+              styles.errorBubble,
+              { backgroundColor: `${colors.error}15`, borderColor: `${colors.error}40` },
+            ]}
+          >
+            <Ionicons name="alert-circle-outline" size={16} color={colors.error} />
+            <Text style={[styles.errorText, { color: colors.error }]}>{msg.text}</Text>
+          </View>
         </View>
       );
     }
@@ -268,118 +266,311 @@ export default function AIChatScreen() {
       const b2b = msg.aiData.b2b;
 
       return (
-        <View key={msg.id} style={styles.aiBubble}>
-          {!ai.is_relevant ? (
-            <Text style={styles.aiText}>
-              ⚠️ <Text style={{ fontWeight: 'bold' }}>Nije relevantno:</Text> {ai.rejection_reason}
-            </Text>
-          ) : (
-            <>
-              <Text style={styles.aiText}>
-                <Text style={{ fontWeight: 'bold' }}>Što vidim:</Text> {ai.identification}
-              </Text>
-              <Text style={styles.aiText}>
-                <Text style={{ fontWeight: 'bold' }}>Rješenje:</Text> {ai.solution}
-              </Text>
+        <View key={msg.id} style={styles.aiMsgWrap}>
+          <ThemedCard style={styles.aiBubble}>
+            {!ai.is_relevant ? (
+              <View style={styles.notRelevantRow}>
+                <Ionicons name="alert-circle" size={18} color={colors.warning} />
+                <ThemedText
+                  type="body"
+                  style={{ flex: 1, color: colors.textSecondary, fontSize: 15 }}
+                >
+                  {ai.rejection_reason}
+                </ThemedText>
+              </View>
+            ) : (
+              <>
+                {ai.identification && (
+                  <View style={styles.aiSection}>
+                    <View style={styles.aiSectionLabel}>
+                      <Ionicons name="eye-outline" size={14} color={colors.primary} />
+                      <ThemedText type="label" style={{ color: colors.primary }}>
+                        Dijagnoza
+                      </ThemedText>
+                    </View>
+                    <ThemedText
+                      type="body"
+                      style={{ color: colors.text, fontSize: 15, lineHeight: 22 }}
+                    >
+                      {ai.identification}
+                    </ThemedText>
+                  </View>
+                )}
 
-              {ai.dangers && (
-                <View style={styles.warningBox}>
-                  <Text style={styles.warningText}>⚠️ {ai.dangers}</Text>
-                </View>
-              )}
+                <View style={[styles.divider, { backgroundColor: colors.border }]} />
+                {ai.solution && (
+                  <View style={styles.aiSection}>
+                    <View style={styles.aiSectionLabel}>
+                      <Ionicons name="construct-outline" size={14} color={colors.secondary} />
+                      <ThemedText type="label" style={{ color: colors.secondary }}>
+                        Rješenje
+                      </ThemedText>
+                    </View>
+                    <ThemedText
+                      type="body"
+                      style={{ color: colors.text, fontSize: 15, lineHeight: 22 }}
+                    >
+                      {ai.solution}
+                    </ThemedText>
+                  </View>
+                )}
 
-              {ai.required_tools && ai.required_tools.length > 0 && (
-                <View style={{ marginTop: 10 }}>
-                  <Text style={{ fontWeight: 'bold', marginBottom: 5 }}>🧰 Potreban alat:</Text>
-                  {ai.required_tools.map((tool: string, i: number) => (
-                    <Text key={i}>• {tool}</Text>
-                  ))}
-                </View>
-              )}
+                {ai.dangers && (
+                  <>
+                    <View style={[styles.divider, { backgroundColor: colors.border }]} />
+                    <View
+                      style={[
+                        styles.warningBox,
+                        { backgroundColor: `${colors.error}10`, borderColor: `${colors.error}30` },
+                      ]}
+                    >
+                      <Ionicons name="warning-outline" size={16} color={colors.error} />
+                      <ThemedText
+                        type="caption"
+                        style={{ flex: 1, color: colors.error, lineHeight: 18 }}
+                      >
+                        {ai.dangers}
+                      </ThemedText>
+                    </View>
+                  </>
+                )}
 
-              {b2b && (b2b.expert_number || (b2b.shop_links && b2b.shop_links.length > 0)) && (
-                <View style={styles.b2bBox}>
-                  {b2b.expert_number && (
-                    <Text style={{ fontWeight: 'bold', color: '#1e3a8a', marginBottom: 5 }}>
-                      📞 Hitno? Zovi: {b2b.expert_number}
-                    </Text>
-                  )}
-                  {b2b.shop_links &&
-                    b2b.shop_links.map((link: string, i: number) => (
-                      <TouchableOpacity key={i} onPress={() => Linking.openURL(link)}>
-                        <Text
-                          style={{
-                            color: '#2563eb',
-                            textDecorationLine: 'underline',
-                            marginTop: 4,
-                          }}
+                {ai.required_tools && ai.required_tools.length > 0 && (
+                  <>
+                    <View style={[styles.divider, { backgroundColor: colors.border }]} />
+                    <View style={styles.aiSection}>
+                      <View style={styles.aiSectionLabel}>
+                        <Ionicons name="hammer-outline" size={14} color={colors.textSecondary} />
+                        <ThemedText type="label" style={{ color: colors.textSecondary }}>
+                          Alati
+                        </ThemedText>
+                      </View>
+                      <View style={styles.toolsWrap}>
+                        {ai.required_tools.map((tool: string, i: number) => (
+                          <View
+                            key={i}
+                            style={[
+                              styles.toolPill,
+                              {
+                                backgroundColor: colors.surfaceRaised,
+                                borderColor: colors.borderStrong,
+                              },
+                            ]}
+                          >
+                            <ThemedText type="caption" style={{ color: colors.text }}>
+                              {tool}
+                            </ThemedText>
+                          </View>
+                        ))}
+                      </View>
+                    </View>
+                  </>
+                )}
+
+                {b2b && (b2b.expert_number || (b2b.shop_links && b2b.shop_links.length > 0)) && (
+                  <>
+                    <View style={[styles.divider, { backgroundColor: colors.border }]} />
+                    <View
+                      style={[
+                        styles.b2bBox,
+                        {
+                          backgroundColor: colors.primaryMuted,
+                          borderColor: `${colors.primary}30`,
+                        },
+                      ]}
+                    >
+                      {b2b.expert_number && (
+                        <TouchableOpacity
+                          style={styles.expertRow}
+                          onPress={() => Linking.openURL(`tel:${b2b.expert_number}`)}
                         >
-                          🔗 {extractLinkName(link)}
-                        </Text>
-                      </TouchableOpacity>
-                    ))}
-                </View>
-              )}
-            </>
-          )}
+                          <Ionicons name="call" size={16} color={colors.primary} />
+                          <ThemedText type="bodyMedium" style={{ color: colors.primary }}>
+                            {b2b.expert_number}
+                          </ThemedText>
+                          <Ionicons
+                            name="chevron-forward"
+                            size={14}
+                            color={`${colors.primary}80`}
+                          />
+                        </TouchableOpacity>
+                      )}
+                      {b2b.shop_links?.map((link: string, i: number) => (
+                        <TouchableOpacity
+                          key={i}
+                          style={[styles.linkBtn, { borderColor: `${colors.primary}40` }]}
+                          onPress={() => Linking.openURL(link)}
+                        >
+                          <Ionicons name="bag-outline" size={14} color={colors.primary} />
+                          <ThemedText type="caption" style={{ color: colors.primary, flex: 1 }}>
+                            {extractLinkName(link)}
+                          </ThemedText>
+                          <Ionicons name="open-outline" size={12} color={`${colors.primary}80`} />
+                        </TouchableOpacity>
+                      ))}
+                    </View>
+                  </>
+                )}
+              </>
+            )}
+          </ThemedCard>
         </View>
       );
     }
     return null;
   };
 
+  const canSend = (!!inputText || !!selectedImage) && !activeTaskId;
+
   return (
     <KeyboardAvoidingView
-      style={styles.container}
+      style={{ flex: 1, backgroundColor: colors.background }}
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 0}
     >
+      <StatusBar barStyle="light-content" backgroundColor={colors.background} />
+
       <ScrollView
         ref={scrollViewRef}
-        contentContainerStyle={styles.chatContainer}
+        contentContainerStyle={[styles.chatContainer, messages.length === 0 && styles.chatEmpty]}
         onContentSizeChange={() => scrollViewRef.current?.scrollToEnd({ animated: true })}
+        showsVerticalScrollIndicator={false}
       >
         {messages.length === 0 ? (
           <View style={styles.emptyState}>
-            <Ionicons name="construct-outline" size={60} color={colors.textSecondary} />
-            <Text style={styles.emptyTitle}>UradiSam Majstor</Text>
-            <Text style={styles.emptyText}>
-              Uslikaj kvar ili postavi pitanje da bismo započeli popravak.
-            </Text>
+            <View
+              style={[
+                styles.emptyIcon,
+                { backgroundColor: colors.primaryMuted, borderColor: `${colors.primary}30` },
+              ]}
+            >
+              <Ionicons name="construct" size={36} color={colors.primary} />
+            </View>
+            <ThemedText
+              type="subtitle"
+              style={{ color: colors.text, textAlign: 'center', marginTop: spacing.md }}
+            >
+              AI Majstor
+            </ThemedText>
+            <ThemedText
+              type="body"
+              style={{
+                color: colors.textSecondary,
+                textAlign: 'center',
+                marginTop: spacing.xs,
+                maxWidth: 260,
+              }}
+            >
+              Uslikaj kvar ili opiši problem — rješenje stiže za sekunde.
+            </ThemedText>
+
+            <View style={styles.chipWrap}>
+              {['Curenje cijevi', 'Električni kvar', 'Pukotina u zidu'].map((label) => (
+                <TouchableOpacity
+                  key={label}
+                  style={[
+                    styles.promptChip,
+                    { backgroundColor: colors.surface, borderColor: colors.border },
+                  ]}
+                  onPress={() => {
+                    setInputText(label);
+                    Haptics.selectionAsync();
+                  }}
+                >
+                  <ThemedText type="caption" style={{ color: colors.textSecondary }}>
+                    {label}
+                  </ThemedText>
+                </TouchableOpacity>
+              ))}
+            </View>
           </View>
         ) : (
           messages.map(renderMessage)
         )}
       </ScrollView>
 
-      <View style={styles.inputArea}>
+      <View
+        style={[
+          styles.inputArea,
+          {
+            backgroundColor: colors.surface,
+            borderTopColor: colors.border,
+          },
+        ]}
+      >
         {selectedImage && (
-          <View style={styles.selectedImagePreview}>
-            <Image source={{ uri: selectedImage }} style={styles.previewThumb} />
-            <TouchableOpacity style={styles.removeThumbBtn} onPress={() => setSelectedImage(null)}>
-              <Ionicons name="close-circle" size={24} color="red" />
+          <View style={styles.previewRow}>
+            <Image
+              source={{ uri: selectedImage }}
+              style={[styles.previewThumb, { borderColor: colors.border }]}
+            />
+            <View style={styles.previewInfo}>
+              <ThemedText type="caption" style={{ color: colors.textSecondary }}>
+                Slika odabrana
+              </ThemedText>
+              <ThemedText type="caption" style={{ color: colors.textMuted }}>
+                Spremi za slanje
+              </ThemedText>
+            </View>
+            <TouchableOpacity onPress={() => setSelectedImage(null)} style={styles.removeBtn}>
+              <Ionicons name="close" size={16} color={colors.textSecondary} />
             </TouchableOpacity>
           </View>
         )}
+
         <View style={styles.inputRow}>
-          <TouchableOpacity style={styles.iconBtn} onPress={() => pickImage(true)}>
-            <Ionicons name="camera" size={24} color={colors.primary} />
+          <TouchableOpacity
+            style={[
+              styles.mediaBtn,
+              { backgroundColor: colors.inputBg, borderColor: colors.border },
+            ]}
+            onPress={() => pickImage(true)}
+          >
+            <Ionicons name="camera-outline" size={22} color={colors.textSecondary} />
           </TouchableOpacity>
-          <TouchableOpacity style={styles.iconBtn} onPress={() => pickImage(false)}>
-            <Ionicons name="image" size={24} color={colors.primary} />
+          <TouchableOpacity
+            style={[
+              styles.mediaBtn,
+              { backgroundColor: colors.inputBg, borderColor: colors.border },
+            ]}
+            onPress={() => pickImage(false)}
+          >
+            <Ionicons name="image-outline" size={22} color={colors.textSecondary} />
           </TouchableOpacity>
+
           <TextInput
-            style={styles.textInput}
+            style={[
+              styles.textInput,
+              {
+                backgroundColor: colors.inputBg,
+                borderColor: colors.border,
+                color: colors.text,
+              },
+            ]}
             placeholder="Opiši problem..."
+            placeholderTextColor={colors.textMuted}
             value={inputText}
             onChangeText={setInputText}
             multiline
+            maxLength={500}
           />
+
           <TouchableOpacity
-            style={[styles.sendBtn, !inputText && !selectedImage && { opacity: 0.5 }]}
+            style={[
+              styles.sendBtn,
+              canSend
+                ? [{ backgroundColor: colors.primary }, shadows.amberSm]
+                : { backgroundColor: colors.surfaceRaised },
+            ]}
             onPress={handleSend}
-            disabled={(!inputText && !selectedImage) || activeTaskId !== null}
+            disabled={!canSend}
+            activeOpacity={0.85}
           >
-            <Ionicons name="send" size={20} color="#fff" />
+            <Ionicons
+              name={activeTaskId ? 'hourglass-outline' : 'arrow-up'}
+              size={20}
+              color={canSend ? colors.background : colors.textMuted}
+            />
           </TouchableOpacity>
         </View>
       </View>
@@ -388,77 +579,203 @@ export default function AIChatScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: colors.background },
-  chatContainer: { padding: spacing.md, paddingBottom: spacing.xl },
-  emptyState: { flex: 1, alignItems: 'center', justifyContent: 'center', marginTop: 100 },
-  emptyTitle: { fontSize: 22, fontWeight: 'bold', color: colors.text, marginTop: 10 },
-  emptyText: {
-    textAlign: 'center',
-    color: colors.textSecondary,
-    marginTop: 10,
-    paddingHorizontal: 40,
+  chatContainer: {
+    padding: spacing.md,
+    paddingBottom: spacing.xl,
+    flexGrow: 1,
+  },
+  chatEmpty: {
+    flex: 1,
+    justifyContent: 'center',
+  },
+  emptyState: {
+    alignItems: 'center',
+    paddingHorizontal: spacing.xl,
+  },
+  emptyIcon: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    borderWidth: 2,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  chipWrap: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: spacing.xs,
+    marginTop: spacing.lg,
+    justifyContent: 'center',
+  },
+  promptChip: {
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.xs + 2,
+    borderRadius: borderRadius.full,
+    borderWidth: 1,
+  },
+  userMsgWrap: {
+    alignItems: 'flex-end',
+    marginBottom: spacing.md,
   },
   userBubble: {
-    alignSelf: 'flex-end',
-    backgroundColor: colors.primary,
-    padding: 12,
-    borderRadius: 16,
-    borderBottomRightRadius: 4,
-    maxWidth: '80%',
-    marginBottom: 15,
+    maxWidth: '82%',
+    borderRadius: borderRadius.lg,
+    borderBottomRightRadius: borderRadius.xs,
+    padding: spacing.md,
+    gap: spacing.sm,
   },
-  userText: { color: '#fff', fontSize: 16 },
-  chatImage: { width: 200, height: 200, borderRadius: 8, marginBottom: 5 },
-  aiBubble: {
-    alignSelf: 'flex-start',
-    backgroundColor: colors.surface,
-    padding: 16,
-    borderRadius: 16,
-    borderBottomLeftRadius: 4,
-    maxWidth: '90%',
-    marginBottom: 15,
-    ...globalStyles.shadow,
+  chatImage: {
+    width: 220,
+    height: 165,
+    borderRadius: borderRadius.md,
   },
-  aiText: { fontSize: 16, color: colors.text, marginBottom: 8, lineHeight: 22 },
-  loadingText: { marginLeft: 10, color: colors.textSecondary, marginTop: 5 },
-  warningBox: { backgroundColor: '#fff1f2', padding: 10, borderRadius: 8, marginTop: 10 },
-  warningText: { color: colors.error, fontWeight: '500' },
-  b2bBox: {
-    backgroundColor: '#eff6ff',
-    padding: 12,
-    borderRadius: 8,
-    marginTop: 15,
+  userText: {
+    fontSize: 16,
+    lineHeight: 24,
+    fontWeight: '400',
+  },
+  aiMsgWrap: {
+    alignItems: 'flex-start',
+    marginBottom: spacing.md,
+    maxWidth: '92%',
+  },
+  errorBubble: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+    borderRadius: borderRadius.md,
     borderWidth: 1,
-    borderColor: '#bfdbfe',
+  },
+  errorText: {
+    fontSize: 14,
+    flex: 1,
+    lineHeight: 20,
+  },
+  aiBubble: {
+    padding: 0,
+    overflow: 'hidden',
+    width: '100%',
+  },
+  aiSection: {
+    padding: spacing.md,
+    gap: spacing.xs,
+  },
+  aiSectionLabel: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xs,
+    marginBottom: 4,
+  },
+  divider: {
+    height: 1,
+    marginHorizontal: 0,
+  },
+  notRelevantRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: spacing.sm,
+    padding: spacing.md,
+  },
+  warningBox: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: spacing.sm,
+    margin: spacing.md,
+    padding: spacing.sm,
+    borderRadius: borderRadius.sm,
+    borderWidth: 1,
+  },
+  toolsWrap: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: spacing.xs,
+  },
+  toolPill: {
+    paddingHorizontal: spacing.sm,
+    paddingVertical: 4,
+    borderRadius: borderRadius.xs,
+    borderWidth: 1,
+  },
+  b2bBox: {
+    margin: spacing.md,
+    marginTop: spacing.sm,
+    padding: spacing.sm,
+    borderRadius: borderRadius.md,
+    borderWidth: 1,
+    gap: spacing.xs,
+  },
+  expertRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    paddingVertical: 4,
+  },
+  linkBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xs,
+    paddingVertical: 6,
+    borderTopWidth: 1,
+    paddingTop: spacing.xs,
+    marginTop: 2,
   },
   inputArea: {
-    backgroundColor: colors.surface,
-    padding: spacing.sm,
     borderTopWidth: 1,
-    borderTopColor: colors.border,
+    paddingHorizontal: spacing.sm,
+    paddingTop: spacing.sm,
+    paddingBottom: Platform.OS === 'ios' ? spacing.lg : spacing.sm,
   },
-  selectedImagePreview: { flexDirection: 'row', marginBottom: 10, paddingHorizontal: 10 },
-  previewThumb: { width: 60, height: 60, borderRadius: 8 },
-  removeThumbBtn: { position: 'absolute', top: -10, left: 60 },
-  inputRow: { flexDirection: 'row', alignItems: 'center' },
-  iconBtn: { padding: 10 },
+  previewRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    marginBottom: spacing.sm,
+    paddingHorizontal: spacing.xs,
+  },
+  previewThumb: {
+    width: 52,
+    height: 52,
+    borderRadius: borderRadius.sm,
+    borderWidth: 1,
+  },
+  previewInfo: { flex: 1, gap: 2 },
+  removeBtn: {
+    width: 28,
+    height: 28,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  inputRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-end',
+    gap: spacing.xs,
+  },
+  mediaBtn: {
+    width: 44,
+    height: 44,
+    borderRadius: borderRadius.md,
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 1,
+  },
   textInput: {
     flex: 1,
-    backgroundColor: colors.background,
-    borderRadius: 20,
-    paddingHorizontal: 15,
-    paddingTop: 10,
-    paddingBottom: 10,
-    maxHeight: 100,
+    borderRadius: borderRadius.lg,
+    paddingHorizontal: spacing.md,
+    paddingTop: 12,
+    paddingBottom: 12,
+    maxHeight: 120,
     fontSize: 16,
+    borderWidth: 1,
+    lineHeight: 22,
   },
   sendBtn: {
-    backgroundColor: colors.primary,
     width: 44,
     height: 44,
     borderRadius: 22,
     justifyContent: 'center',
     alignItems: 'center',
-    marginLeft: 10,
   },
 });
