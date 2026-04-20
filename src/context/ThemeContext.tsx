@@ -8,6 +8,7 @@ export interface ThemeColors {
   background: string;
   backgroundElevated: string;
   surface: string;
+  surfaceElevated: string;
   surfaceRaised: string;
   primary: string;
   primaryDark: string;
@@ -33,6 +34,7 @@ export const darkColors: ThemeColors = {
   background: '#0C0D0F',
   backgroundElevated: '#111214',
   surface: '#151618',
+  surfaceElevated: '#1C1E22',
   surfaceRaised: '#1C1E22',
   primary: '#F59E0B',
   primaryDark: '#D97706',
@@ -58,6 +60,7 @@ export const lightColors: ThemeColors = {
   background: '#F5F6F8',
   backgroundElevated: '#ECEEF2',
   surface: '#FFFFFF',
+  surfaceElevated: '#1C1E22',
   surfaceRaised: '#F8F9FB',
   primary: '#D97706',
   primaryDark: '#B45309',

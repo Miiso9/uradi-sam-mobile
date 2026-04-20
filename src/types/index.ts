@@ -32,3 +32,11 @@ export type RootStackParamList = {
   Camera: undefined;
   AnalysisResult: { taskId: string };
 };
+
+export interface Chat {
+  id: string;
+  user_id: string;
+  title: string;
+  created_at: string;
+  updated_at: string;
+}
