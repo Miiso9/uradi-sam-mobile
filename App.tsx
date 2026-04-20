@@ -109,7 +109,7 @@ function AppNavigator() {
   const isInitialized = useAuthStore((state) => state.isInitialized);
   const initializeAuth = useAuthStore((state) => state.initializeAuth);
   const setSession = useAuthStore((state) => state.setSession);
-  const { colors } = useTheme();
+  const { colors, isDark } = useTheme();
 
   useEffect(() => {
     initializeAuth();
@@ -151,7 +151,10 @@ function AppNavigator() {
 
   return (
     <NavigationContainer theme={navTheme}>
-      <StatusBar barStyle="light-content" backgroundColor={colors.background} />
+      <StatusBar
+        barStyle={isDark ? 'light-content' : 'dark-content'}
+        backgroundColor={colors.background}
+      />
       <Stack.Navigator id="RootStack" screenOptions={{ headerShown: false }}>
         {session && session.user ? (
           <Stack.Screen name="MainTabs" component={MainTabs} />

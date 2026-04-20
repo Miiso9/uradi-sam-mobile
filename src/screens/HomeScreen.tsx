@@ -109,7 +109,7 @@ interface HowStep {
 }
 
 export default function HomeScreen() {
-  const { colors } = useTheme();
+  const { colors, isDark } = useTheme();
   const user = useAuthStore((state) => state.user);
   const navigation = useNavigation<HomeScreenNavigationProp>();
 
@@ -171,7 +171,10 @@ export default function HomeScreen() {
 
   return (
     <ThemedView style={{ flex: 1 }}>
-      <StatusBar barStyle="light-content" backgroundColor={colors.background} />
+      <StatusBar
+        barStyle={isDark ? 'light-content' : 'dark-content'}
+        backgroundColor={colors.background}
+      />
 
       <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
         <Animated.View style={[styles.header, headerStyle]}>

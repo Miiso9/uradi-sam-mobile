@@ -25,7 +25,7 @@ import { useTheme } from '../context/ThemeContext';
 import { borderRadius, spacing, shadows } from '../utils/theme';
 
 export default function AuthScreen() {
-  const { colors } = useTheme();
+  const { colors, isDark } = useTheme();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
@@ -85,7 +85,10 @@ export default function AuthScreen() {
       style={[styles.root, { backgroundColor: colors.background }]}
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
     >
-      <StatusBar barStyle="light-content" backgroundColor={colors.background} />
+      <StatusBar
+        barStyle={isDark ? 'light-content' : 'dark-content'}
+        backgroundColor={colors.background}
+      />
 
       <View style={[styles.accentBar, { backgroundColor: colors.primary }]} />
 
