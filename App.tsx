@@ -92,7 +92,7 @@ function MainTabs() {
       <Tab.Screen
         name="HomeTab"
         component={HomeScreen}
-        options={{ title: 'Garaža', tabBarLabel: 'Garaža', headerTitle: 'UradiSam' }}
+        options={{ title: 'Početna', tabBarLabel: 'Početna', headerTitle: 'UradiSam' }}
       />
       <Tab.Screen
         name="AIChatTab"

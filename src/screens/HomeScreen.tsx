@@ -1,5 +1,13 @@
 import React, { useEffect } from 'react';
-import { ScrollView, StyleSheet, View, TouchableOpacity, StatusBar } from 'react-native';
+import {
+  ScrollView,
+  StyleSheet,
+  View,
+  TouchableOpacity,
+  StatusBar,
+  StyleProp,
+  ViewStyle,
+} from 'react-native';
 import Animated, {
   useSharedValue,
   useAnimatedStyle,
@@ -12,161 +20,67 @@ import { useNavigation, NavigationProp } from '@react-navigation/native';
 import * as Haptics from 'expo-haptics';
 import { ThemedView } from '../components/ThemedView';
 import { ThemedText } from '../components/ThemedText';
-import { ThemedCard } from '../components/ThemedCard';
 import { useTheme } from '../context/ThemeContext';
-import { useAuthStore } from '../store/authStore';
+import { useProfileStore } from '../store/profileStore';
 import { spacing, borderRadius, shadows } from '../utils/theme';
 
 type HomeScreenNavigationProp = NavigationProp<{
   AIChatTab: undefined;
 }>;
 
-interface ActionCardProps {
-  icon: keyof typeof Ionicons.glyphMap;
-  title: string;
-  subtitle: string;
-  color: string;
-  onPress: () => void;
+interface FadeInViewProps {
+  children: React.ReactNode;
   delay: number;
+  style?: StyleProp<ViewStyle>;
+  direction?: 'up' | 'left' | 'right';
 }
 
-const ActionCard: React.FC<ActionCardProps> = ({
-  icon,
-  title,
-  subtitle,
-  color,
-  onPress,
-  delay,
-}) => {
-  const { colors } = useTheme();
+const FadeInView = ({ children, delay, style, direction = 'up' }: FadeInViewProps) => {
   const opacity = useSharedValue(0);
-  const translateY = useSharedValue(20);
+  const translate = useSharedValue(direction === 'up' ? 25 : direction === 'left' ? 25 : -25);
 
   useEffect(() => {
     opacity.value = withDelay(
       delay,
-      withTiming(1, { duration: 500, easing: Easing.out(Easing.quad) }),
+      withTiming(1, { duration: 600, easing: Easing.out(Easing.cubic) }),
     );
-    translateY.value = withDelay(
+    translate.value = withDelay(
       delay,
-      withTiming(0, { duration: 500, easing: Easing.out(Easing.cubic) }),
+      withTiming(0, { duration: 600, easing: Easing.out(Easing.cubic) }),
     );
-  }, [delay, opacity, translateY]);
+  }, [delay, opacity, translate]);
 
-  const style = useAnimatedStyle(() => ({
+  const animatedStyle = useAnimatedStyle(() => ({
     opacity: opacity.value,
-    transform: [{ translateY: translateY.value }],
+    transform:
+      direction === 'up' ? [{ translateY: translate.value }] : [{ translateX: translate.value }],
   }));
 
-  return (
-    <Animated.View style={[styles.actionCardWrap, style]}>
-      <TouchableOpacity
-        style={[styles.actionCard, { backgroundColor: colors.surface, borderColor: colors.border }]}
-        onPress={() => {
-          Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-          onPress();
-        }}
-        activeOpacity={0.8}
-      >
-        <View style={[styles.actionIconBg, { backgroundColor: `${color}18` }]}>
-          <Ionicons name={icon} size={26} color={color} />
-        </View>
-        <ThemedText type="bodyMedium" style={{ color: colors.text, marginBottom: 2 }}>
-          {title}
-        </ThemedText>
-        <ThemedText type="caption" style={{ color: colors.textSecondary }}>
-          {subtitle}
-        </ThemedText>
-      </TouchableOpacity>
-    </Animated.View>
-  );
+  return <Animated.View style={[style, animatedStyle]}>{children}</Animated.View>;
 };
-
-interface InfoRowProps {
-  icon: keyof typeof Ionicons.glyphMap;
-  text: string;
-  color: string;
-}
-
-const InfoRow: React.FC<InfoRowProps> = ({ icon, text, color }) => {
-  const { colors } = useTheme();
-  return (
-    <View style={styles.infoRow}>
-      <View style={[styles.infoIconDot, { backgroundColor: `${color}22` }]}>
-        <Ionicons name={icon} size={14} color={color} />
-      </View>
-      <ThemedText type="caption" style={{ flex: 1, color: colors.textSecondary, lineHeight: 20 }}>
-        {text}
-      </ThemedText>
-    </View>
-  );
-};
-
-interface HowStep {
-  step: string;
-  text: string;
-  icon: keyof typeof Ionicons.glyphMap;
-}
 
 export default function HomeScreen() {
   const { colors, isDark } = useTheme();
-  const user = useAuthStore((state) => state.user);
   const navigation = useNavigation<HomeScreenNavigationProp>();
 
-  const headerOpacity = useSharedValue(0);
-  const headerTranslate = useSharedValue(-10);
+  const { firstName, fetchProfile } = useProfileStore();
 
   useEffect(() => {
-    headerOpacity.value = withTiming(1, { duration: 500, easing: Easing.out(Easing.quad) });
-    headerTranslate.value = withTiming(0, { duration: 500, easing: Easing.out(Easing.cubic) });
-  }, [headerOpacity, headerTranslate]);
+    fetchProfile();
+  }, [fetchProfile]);
 
-  const headerStyle = useAnimatedStyle(() => ({
-    opacity: headerOpacity.value,
-    transform: [{ translateY: headerTranslate.value }],
-  }));
+  const displayName = firstName ? firstName : 'Majstore';
 
-  const userName = user?.email?.split('@')[0] || 'Korisnik';
+  const handleStartRepair = () => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    navigation.navigate('AIChatTab');
+  };
 
-  const actions: ActionCardProps[] = [
-    {
-      icon: 'camera',
-      title: 'Uslikaj kvar',
-      subtitle: 'AI prepoznaje problem',
-      color: colors.primary,
-      onPress: () => navigation.navigate('AIChatTab'),
-      delay: 0,
-    },
-    {
-      icon: 'chatbubbles',
-      title: 'Postavi pitanje',
-      subtitle: 'Opiši problem riječima',
-      color: colors.secondary,
-      onPress: () => navigation.navigate('AIChatTab'),
-      delay: 80,
-    },
-    {
-      icon: 'construct',
-      title: 'Korak-po-korak',
-      subtitle: 'Detaljne upute',
-      color: '#A78BFA',
-      onPress: () => navigation.navigate('AIChatTab'),
-      delay: 160,
-    },
-    {
-      icon: 'shield-checkmark',
-      title: 'Sigurnosni savjeti',
-      subtitle: 'Upozorenja i mjere',
-      color: colors.success,
-      onPress: () => navigation.navigate('AIChatTab'),
-      delay: 240,
-    },
-  ];
-
-  const howSteps: HowStep[] = [
-    { step: '01', text: 'Uslikaj kvar ili opiši problem', icon: 'camera-outline' },
-    { step: '02', text: 'AI analizira i identificira uzrok', icon: 'analytics-outline' },
-    { step: '03', text: 'Dobivaš korak-po-korak upute', icon: 'list-outline' },
+  const quickCategories: { icon: keyof typeof Ionicons.glyphMap; label: string }[] = [
+    { icon: 'water-outline', label: 'Curenje vode' },
+    { icon: 'flash-outline', label: 'Elektrika' },
+    { icon: 'hammer-outline', label: 'Namještaj' },
+    { icon: 'color-fill-outline', label: 'Zidovi' },
   ];
 
   return (
@@ -174,244 +88,322 @@ export default function HomeScreen() {
       <StatusBar
         barStyle={isDark ? 'light-content' : 'dark-content'}
         backgroundColor={colors.background}
+        translucent={false}
       />
 
       <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
-        <Animated.View style={[styles.header, headerStyle]}>
+        <FadeInView delay={50} style={styles.header}>
           <View>
-            <ThemedText type="label" style={{ color: colors.primary, marginBottom: 4 }}>
-              Dobro došao
+            <ThemedText
+              type="label"
+              style={{ color: colors.textSecondary, letterSpacing: 0.5, fontSize: 12 }}
+            >
+              SPREMAN ZA RAD?
             </ThemedText>
-            <ThemedText type="title" style={{ color: colors.text, letterSpacing: -1 }}>
-              {userName} 👋
-            </ThemedText>
-          </View>
-          <View
-            style={[
-              styles.statusBadge,
-              { backgroundColor: colors.primaryMuted, borderColor: `${colors.primary}40` },
-            ]}
-          >
-            <View style={[styles.statusDot, { backgroundColor: colors.success }]} />
-            <ThemedText type="caption" style={{ color: colors.primary }}>
-              AI spreman
+            <ThemedText
+              type="title"
+              style={{ color: colors.text, letterSpacing: -0.8, marginTop: 2, fontSize: 32 }}
+            >
+              Bok, {displayName}.
             </ThemedText>
           </View>
-        </Animated.View>
+        </FadeInView>
 
-        <Animated.View
-          style={[{ paddingHorizontal: spacing.md, marginBottom: spacing.lg }, headerStyle]}
-        >
+        <FadeInView delay={150} style={styles.heroSection}>
           <TouchableOpacity
-            style={[styles.heroCta, { backgroundColor: colors.primary }, shadows.amber]}
-            onPress={() => {
-              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-              navigation.navigate('AIChatTab');
-            }}
-            activeOpacity={0.88}
+            style={[styles.heroCard, { backgroundColor: colors.primary }, shadows.amber]}
+            onPress={handleStartRepair}
+            activeOpacity={0.9}
           >
-            <View style={styles.heroCtaLeft}>
-              <Ionicons name="scan" size={28} color={colors.background} />
-              <View>
-                <ThemedText type="button" style={{ color: colors.background, fontSize: 17 }}>
-                  Analiziraj problem
-                </ThemedText>
-                <ThemedText type="caption" style={{ color: `${colors.background}AA` }}>
-                  Uslikaj ili opiši kvar
+            <Ionicons
+              name="scan-outline"
+              size={180}
+              color="rgba(255,255,255,0.07)"
+              style={styles.heroBgIcon}
+            />
+
+            <View style={styles.heroTop}>
+              <View style={styles.pulseBadge}>
+                <View style={[styles.pulseDot, { backgroundColor: '#FFF' }]} />
+                <ThemedText type="caption" style={{ color: '#FFF', fontWeight: '600' }}>
+                  AI MAJSTOR JE SPREMAN
                 </ThemedText>
               </View>
             </View>
-            <Ionicons name="arrow-forward-circle" size={28} color={`${colors.background}CC`} />
-          </TouchableOpacity>
-        </Animated.View>
 
-        <View style={styles.sectionHeader}>
-          <ThemedText type="label" style={{ color: colors.textSecondary }}>
-            Mogućnosti
-          </ThemedText>
-        </View>
-
-        <View style={styles.grid}>
-          {actions.map((item, idx) => (
-            <ActionCard key={idx} {...item} />
-          ))}
-        </View>
-
-        <View style={{ paddingHorizontal: spacing.md, marginBottom: spacing.md }}>
-          <ThemedCard accent style={styles.tipCard}>
-            <View style={styles.tipHeader}>
-              <Ionicons name="bulb" size={20} color={colors.primary} />
-              <ThemedText type="label" style={{ color: colors.primary }}>
-                Savjet dana
+            <View style={styles.heroBottom}>
+              <ThemedText
+                type="title"
+                style={{ color: '#FFF', fontSize: 26, letterSpacing: -0.5, marginBottom: 8 }}
+              >
+                Novi popravak
               </ThemedText>
-            </View>
-            <ThemedText type="body" style={{ color: colors.text, marginBottom: spacing.md }}>
-              Osnovna pravila sigurnog popravka:
-            </ThemedText>
-            <View style={styles.infoList}>
-              <InfoRow
-                icon="flash-off"
-                text="Isključi struju prije rada na elektro instalacijama"
-                color={colors.warning}
-              />
-              <InfoRow
-                icon="water"
-                text="Zatvori vodu prije rada na vodoinstalacijama"
-                color={colors.secondary}
-              />
-              <InfoRow
-                icon="eye"
-                text="Koristi zaštitne naočale i rukavice"
-                color={colors.success}
-              />
-            </View>
-          </ThemedCard>
-        </View>
-
-        <View style={styles.sectionHeader}>
-          <ThemedText type="label" style={{ color: colors.textSecondary }}>
-            Kako to radi
-          </ThemedText>
-        </View>
-
-        <View style={{ paddingHorizontal: spacing.md, marginBottom: spacing.xl }}>
-          <ThemedCard style={styles.howCard}>
-            {howSteps.map((item, idx) => (
               <View
+                style={{
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                }}
+              >
+                <ThemedText
+                  type="bodyMedium"
+                  style={{ color: 'rgba(255,255,255,0.85)', maxWidth: '75%', lineHeight: 20 }}
+                >
+                  Uslikaj kvar ili postavi pitanje. Pusti umjetnu inteligenciju da pronađe rješenje.
+                </ThemedText>
+                <View style={styles.actionArrowWrap}>
+                  <Ionicons name="arrow-forward" size={24} color={colors.primary} />
+                </View>
+              </View>
+            </View>
+          </TouchableOpacity>
+        </FadeInView>
+
+        <FadeInView delay={250} style={styles.section}>
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={styles.quickScroll}
+          >
+            {quickCategories.map((item, idx) => (
+              <TouchableOpacity
                 key={idx}
                 style={[
-                  styles.howRow,
-                  idx < howSteps.length - 1 && {
-                    borderBottomWidth: 1,
-                    borderBottomColor: colors.border,
-                  },
+                  styles.quickChip,
+                  { backgroundColor: colors.surface, borderColor: colors.border },
                 ]}
+                onPress={handleStartRepair}
+                activeOpacity={0.7}
               >
-                <View style={[styles.stepNum, { borderColor: colors.borderStrong }]}>
-                  <ThemedText type="label" style={{ color: colors.primary, fontSize: 10 }}>
-                    {item.step}
-                  </ThemedText>
-                </View>
-                <Ionicons
-                  name={item.icon}
-                  size={18}
-                  color={colors.textSecondary}
-                  style={{ marginRight: 4 }}
-                />
-                <ThemedText type="body" style={{ flex: 1, color: colors.text, fontSize: 15 }}>
-                  {item.text}
+                <Ionicons name={item.icon} size={18} color={colors.textSecondary} />
+                <ThemedText type="bodyMedium" style={{ color: colors.text }}>
+                  {item.label}
+                </ThemedText>
+              </TouchableOpacity>
+            ))}
+          </ScrollView>
+        </FadeInView>
+
+        <FadeInView delay={350} style={styles.section}>
+          <ThemedText
+            type="label"
+            style={{
+              color: colors.textSecondary,
+              marginBottom: spacing.lg,
+              paddingHorizontal: spacing.md,
+            }}
+          >
+            KAKO OVO FUNKCIONIRA?
+          </ThemedText>
+
+          <View style={styles.timelineContainer}>
+            <View style={[styles.timelineLine, { backgroundColor: colors.border }]} />
+
+            <View style={styles.timelineStep}>
+              <View
+                style={[
+                  styles.timelineDot,
+                  { backgroundColor: colors.primary, borderColor: colors.background },
+                ]}
+              />
+              <View style={styles.timelineContent}>
+                <ThemedText type="bodyMedium" style={{ color: colors.text }}>
+                  1. Prepoznavanje
+                </ThemedText>
+                <ThemedText type="caption" style={{ color: colors.textSecondary }}>
+                  Uslikaj problematični dio ili jasno opiši kvar riječima.
                 </ThemedText>
               </View>
-            ))}
-          </ThemedCard>
-        </View>
+            </View>
+
+            <View style={styles.timelineStep}>
+              <View
+                style={[
+                  styles.timelineDot,
+                  { backgroundColor: colors.secondary, borderColor: colors.background },
+                ]}
+              />
+              <View style={styles.timelineContent}>
+                <ThemedText type="bodyMedium" style={{ color: colors.text }}>
+                  2. AI Dijagnoza
+                </ThemedText>
+                <ThemedText type="caption" style={{ color: colors.textSecondary }}>
+                  Sustav analizira sliku i pretražuje bazu kako bi našao uzrok.
+                </ThemedText>
+              </View>
+            </View>
+
+            <View style={[styles.timelineStep, { marginBottom: 0 }]}>
+              <View
+                style={[
+                  styles.timelineDot,
+                  { backgroundColor: colors.success, borderColor: colors.background },
+                ]}
+              />
+              <View style={styles.timelineContent}>
+                <ThemedText type="bodyMedium" style={{ color: colors.text }}>
+                  3. Rješenje i alati
+                </ThemedText>
+                <ThemedText type="caption" style={{ color: colors.textSecondary }}>
+                  Dobivaš upute korak-po-korak i popis potrebnog alata za popravak.
+                </ThemedText>
+              </View>
+            </View>
+          </View>
+        </FadeInView>
+
+        <FadeInView delay={450} style={styles.section}>
+          <View
+            style={[
+              styles.tipBanner,
+              {
+                backgroundColor: isDark ? '#2A2215' : '#FFF8E6',
+                borderColor: isDark ? '#4A3B22' : '#FFE8B3',
+              },
+            ]}
+          >
+            <View style={[styles.tipIconWrap, { backgroundColor: colors.warning }]}>
+              <Ionicons name="flash" size={16} color="#FFF" />
+            </View>
+            <View style={{ flex: 1 }}>
+              <ThemedText
+                type="label"
+                style={{ color: isDark ? '#FCD34D' : '#D97706', marginBottom: 2 }}
+              >
+                ZLATNO PRAVILO
+              </ThemedText>
+              <ThemedText
+                type="caption"
+                style={{ color: isDark ? '#D1D5DB' : '#78350F', lineHeight: 18 }}
+              >
+                Uvijek zatvori glavni ventil ili isključi osigurač prije početka bilo kakvih radova
+                na instalacijama!
+              </ThemedText>
+            </View>
+          </View>
+        </FadeInView>
       </ScrollView>
     </ThemedView>
   );
 }
 
 const styles = StyleSheet.create({
-  scroll: { paddingBottom: spacing.xl },
+  scroll: {
+    paddingBottom: spacing['3xl'],
+    paddingTop: spacing.sm,
+  },
   header: {
     flexDirection: 'row',
-    alignItems: 'center',
+    alignItems: 'flex-end',
     justifyContent: 'space-between',
-    paddingHorizontal: spacing.md,
-    paddingTop: spacing.lg,
-    paddingBottom: spacing.lg,
+    paddingHorizontal: spacing.lg,
+    marginBottom: spacing.xl,
   },
-  statusBadge: {
+  heroSection: {
+    paddingHorizontal: spacing.md,
+    marginBottom: spacing.lg,
+  },
+  heroCard: {
+    width: '100%',
+    height: 220,
+    borderRadius: 24,
+    padding: spacing.xl,
+    justifyContent: 'space-between',
+    overflow: 'hidden',
+    position: 'relative',
+  },
+  heroBgIcon: {
+    position: 'absolute',
+    right: -20,
+    bottom: -30,
+    transform: [{ rotate: '-15deg' }],
+  },
+  heroTop: {
+    flexDirection: 'row',
+    justifyContent: 'flex-start',
+  },
+  pulseBadge: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
-    paddingHorizontal: 10,
+    gap: 8,
+    backgroundColor: 'rgba(0,0,0,0.2)',
+    paddingHorizontal: 12,
     paddingVertical: 6,
+    borderRadius: borderRadius.full,
+  },
+  pulseDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+  },
+  heroBottom: {
+    marginTop: 'auto',
+  },
+  actionArrowWrap: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: '#FFF',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  section: {
+    marginBottom: spacing.xl,
+  },
+  quickScroll: {
+    paddingHorizontal: spacing.md,
+    gap: spacing.sm,
+  },
+  quickChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xs,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
     borderRadius: borderRadius.full,
     borderWidth: 1,
   },
-  statusDot: {
-    width: 6,
-    height: 6,
-    borderRadius: 3,
+  timelineContainer: {
+    paddingHorizontal: spacing.lg,
+    position: 'relative',
   },
-  heroCta: {
+  timelineLine: {
+    position: 'absolute',
+    left: spacing.lg + 7,
+    top: 8,
+    bottom: 24,
+    width: 2,
+  },
+  timelineStep: {
     flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    padding: spacing.md,
-    borderRadius: borderRadius.lg,
+    alignItems: 'flex-start',
+    marginBottom: spacing.lg,
   },
-  heroCtaLeft: {
+  timelineDot: {
+    width: 16,
+    height: 16,
+    borderRadius: 8,
+    borderWidth: 3,
+    marginRight: spacing.md,
+    marginTop: 2,
+  },
+  timelineContent: {
+    flex: 1,
+    gap: 2,
+  },
+  tipBanner: {
+    marginHorizontal: spacing.md,
+    borderRadius: borderRadius.lg,
+    borderWidth: 1,
+    padding: spacing.md,
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.md,
   },
-  sectionHeader: {
-    paddingHorizontal: spacing.md,
-    marginBottom: spacing.sm,
-  },
-  grid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    paddingHorizontal: spacing.sm,
-    marginBottom: spacing.lg,
-  },
-  actionCardWrap: {
-    width: '50%',
-    padding: spacing.xs,
-  },
-  actionCard: {
-    borderRadius: borderRadius.lg,
-    borderWidth: 1,
-    padding: spacing.md,
-    gap: spacing.xs,
-    ...shadows.sm,
-  },
-  actionIconBg: {
-    width: 48,
-    height: 48,
-    borderRadius: borderRadius.md,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginBottom: spacing.xs,
-  },
-  tipCard: {
-    padding: spacing.md,
-  },
-  tipHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.xs,
-    marginBottom: spacing.sm,
-  },
-  infoList: {
-    gap: spacing.sm,
-  },
-  infoRow: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    gap: spacing.sm,
-  },
-  infoIconDot: {
-    width: 24,
-    height: 24,
-    borderRadius: 12,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginTop: 1,
-  },
-  howCard: { padding: 0, overflow: 'hidden' },
-  howRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.sm,
-    padding: spacing.md,
-  },
-  stepNum: {
-    width: 32,
-    height: 32,
-    borderRadius: 8,
-    borderWidth: 1,
+  tipIconWrap: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
     justifyContent: 'center',
     alignItems: 'center',
   },
