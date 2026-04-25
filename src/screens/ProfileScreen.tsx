@@ -10,6 +10,7 @@ import {
   Alert,
   ActivityIndicator,
   Image,
+  Modal,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
@@ -92,6 +93,8 @@ export default function ProfileScreen() {
   const [editFirst, setEditFirst] = useState('');
   const [editLast, setEditLast] = useState('');
 
+  const [activeModal, setActiveModal] = useState<'terms' | 'privacy' | null>(null);
+
   useEffect(() => {
     if (user) fetchProfile();
   }, [user, fetchProfile]);
@@ -142,6 +145,16 @@ export default function ProfileScreen() {
       Alert.alert('Greška', 'Nije moguće učitati sliku.');
       console.log(error);
     }
+  };
+
+  const openModal = (type: 'terms' | 'privacy') => {
+    Haptics.selectionAsync();
+    setActiveModal(type);
+  };
+
+  const closeModal = () => {
+    Haptics.selectionAsync();
+    setActiveModal(null);
   };
 
   const displayName = firstName || lastName ? `${firstName} ${lastName}`.trim() : 'Novi Korisnik';
@@ -316,11 +329,13 @@ export default function ProfileScreen() {
               icon="document-text-outline"
               label="Uvjeti korištenja"
               right={<Ionicons name="chevron-forward" size={16} color={colors.textMuted} />}
+              onPress={() => openModal('terms')}
             />
             <MenuRow
               icon="shield-outline"
               label="Politika privatnosti"
               right={<Ionicons name="chevron-forward" size={16} color={colors.textMuted} />}
+              onPress={() => openModal('privacy')}
             />
             <MenuRow
               icon="information-circle-outline"
@@ -353,6 +368,61 @@ export default function ProfileScreen() {
           </ThemedText>
         </View>
       </ScrollView>
+
+      <Modal
+        visible={activeModal !== null}
+        transparent={true}
+        animationType="slide"
+        onRequestClose={closeModal}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={[styles.modalContent, { backgroundColor: colors.surface }]}>
+            <View style={[styles.modalHeader, { borderBottomColor: colors.border }]}>
+              <ThemedText type="title" style={{ color: colors.text, fontSize: 18 }}>
+                {activeModal === 'terms' ? 'Uvjeti korištenja' : 'Politika privatnosti'}
+              </ThemedText>
+              <TouchableOpacity onPress={closeModal} style={styles.closeBtn}>
+                <Ionicons name="close" size={24} color={colors.text} />
+              </TouchableOpacity>
+            </View>
+            <ScrollView style={styles.modalBody} showsVerticalScrollIndicator={false}>
+              {activeModal === 'terms' ? (
+                <ThemedText type="body" style={{ color: colors.textSecondary, lineHeight: 22 }}>
+                  **1. Prihvaćanje uvjeta**{'\n'}
+                  Korištenjem aplikacije UradiSam AI, slažete se s ovim uvjetima. Aplikacija je
+                  namijenjena isključivo u informativne svrhe i kao pomoć pri kućnim popravcima.
+                  {'\n\n'}
+                  **2. Odricanje od odgovornosti**{'\n'}
+                  UradiSam AI koristi umjetnu inteligenciju za analizu kvarova. Ne garantiramo 100%
+                  točnost rješenja. Sve popravke izvodite na vlastitu odgovornost. Uvijek se
+                  obratite ovlaštenom stručnjaku za radove na električnim i plinskim instalacijama.
+                  {'\n\n'}
+                  **3. Ponašanje korisnika**{'\n'}
+                  Zabranjeno je korištenje aplikacije u nezakonite svrhe ili postavljanje sadržaja
+                  koji nije u skladu s pravilima (npr. neprimjerene slike).{'\n\n'}
+                  **4. Promjene uvjeta**{'\n'}
+                  Zadržavamo pravo izmjene ovih uvjeta u bilo kojem trenutku.
+                </ThemedText>
+              ) : (
+                <ThemedText type="body" style={{ color: colors.textSecondary, lineHeight: 22 }}>
+                  **1. Prikupljanje podataka**{'\n'}
+                  Prikupljamo samo nužne podatke (email, ime i fotografije kvarova koje pošaljete)
+                  kako bismo omogućili rad AI analize i spremili vašu povijest razgovora.{'\n\n'}
+                  **2. Dijeljenje podataka**{'\n'}
+                  Vaši podaci i fotografije obrađuju se putem sigurnih servera. Ne prodajemo vaše
+                  osobne podatke trećim stranama. Fotografije se koriste isključivo za analizu
+                  problema koji ste prijavili.{'\n\n'}
+                  **3. Sigurnost**{'\n'}
+                  Poduzimamo sve razumne tehničke mjere (poput RLS polisa i enkripcije) kako bismo
+                  zaštitili vaše podatke u našoj Supabase bazi.{'\n\n'}
+                  **4. Vaša prava**{'\n'}U svakom trenutku možete zatražiti brisanje svog računa i
+                  svih povezanih podataka slanjem zahtjeva na naš email.
+                </ThemedText>
+              )}
+            </ScrollView>
+          </View>
+        </View>
+      </Modal>
     </ThemedView>
   );
 }
@@ -454,4 +524,31 @@ const styles = StyleSheet.create({
   menuLabel: { flex: 1 },
   menuRight: { alignItems: 'flex-end' },
   footer: { paddingVertical: spacing.xl, paddingHorizontal: spacing.lg },
+
+  // Modal Styles
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    justifyContent: 'flex-end',
+  },
+  modalContent: {
+    borderTopLeftRadius: borderRadius.xl,
+    borderTopRightRadius: borderRadius.xl,
+    maxHeight: '80%',
+    minHeight: '50%',
+    paddingBottom: spacing.xl,
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: spacing.md,
+    borderBottomWidth: 1,
+  },
+  closeBtn: {
+    padding: 4,
+  },
+  modalBody: {
+    padding: spacing.lg,
+  },
 });
