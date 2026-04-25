@@ -37,6 +37,7 @@ import { ThemedCard } from '../components/ThemedCard';
 import { useTheme } from '../context/ThemeContext';
 import { AnimatedLoader } from '../components/AnimatedLoader';
 import { spacing, borderRadius, shadows } from '../utils/theme';
+import { useProfileStore } from '../store/profileStore';
 
 const SCREEN_WIDTH = Dimensions.get('window').width;
 const DRAWER_WIDTH = SCREEN_WIDTH * 0.75;
@@ -248,8 +249,12 @@ export default function AIChatScreen() {
         if (json.status === 'completed' || json.status === 'success') {
           setActiveTaskId(null);
 
-          Alert.alert('AI Majstor', 'Analiza je gotova! Pogledaj rješenje.');
-          Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+          const isFocused = navigation.isFocused();
+          const notificationsEnabled = useProfileStore.getState().notificationsEnabled;
+          if (!isFocused && notificationsEnabled) {
+            Alert.alert('AI Majstor', 'Analiza je gotova! Pogledaj rješenje.');
+            Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+          }
 
           setMessages((prev) =>
             prev.map((msg) =>
