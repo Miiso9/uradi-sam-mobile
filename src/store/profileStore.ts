@@ -15,6 +15,7 @@ interface ProfileState {
   updateProfile: (first: string, last: string) => Promise<void>;
   uploadAvatar: (imageUri: string) => Promise<void>;
   updateNotificationSettings: (enabled: boolean) => Promise<void>;
+  savePushToken: (token: string) => Promise<void>;
   clearProfile: () => void;
 }
 
@@ -87,11 +88,7 @@ export const useProfileStore = create<ProfileState>((set) => ({
       const {
         data: { publicUrl },
       } = supabase.storage.from('avatars').getPublicUrl(filePath);
-      const { error: updateError } = await supabase
-        .from('profiles')
-        .update({ avatar_url: publicUrl })
-        .eq('id', user.id);
-      if (updateError) throw updateError;
+      await supabase.from('profiles').update({ avatar_url: publicUrl }).eq('id', user.id);
       set({ avatarUrl: publicUrl });
     } catch (error) {
       console.log(error);
@@ -106,13 +103,19 @@ export const useProfileStore = create<ProfileState>((set) => ({
     if (!user) return;
     set({ notificationsEnabled: enabled });
     try {
-      const { error } = await supabase
-        .from('profiles')
-        .update({ notifications_enabled: enabled })
-        .eq('id', user.id);
-      if (error) throw error;
+      await supabase.from('profiles').update({ notifications_enabled: enabled }).eq('id', user.id);
     } catch (error) {
       set({ notificationsEnabled: !enabled });
+      console.error(error);
+    }
+  },
+
+  savePushToken: async (token: string) => {
+    const user = useAuthStore.getState().user;
+    if (!user) return;
+    try {
+      await supabase.from('profiles').update({ push_token: token }).eq('id', user.id);
+    } catch (error) {
       console.error(error);
     }
   },

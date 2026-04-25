@@ -1,5 +1,5 @@
 import React, { useEffect } from 'react';
-import { ActivityIndicator, View, Platform, StatusBar } from 'react-native';
+import { ActivityIndicator, View, Platform, StatusBar, LogBox } from 'react-native';
 import { NavigationContainer, DefaultTheme } from '@react-navigation/native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
@@ -14,9 +14,17 @@ import HomeScreen from './src/screens/HomeScreen';
 import AIChatScreen from './src/screens/AIChatScreen';
 import ProfileScreen from './src/screens/ProfileScreen';
 import AuthScreen from './src/screens/AuthScreen';
+import { registerForPushNotificationsAsync } from './src/services/notifications';
+import { useProfileStore } from './src/store/profileStore';
+import 'react-native-reanimated';
+
+LogBox.ignoreLogs([
+  'expo-notifications',
+  '`expo-notifications` functionality is not fully supported in Expo Go',
+  'Android Push notifications (remote notifications) functionality',
+]);
 
 enableScreens();
-import 'react-native-reanimated';
 
 export type RootStackParamList = {
   Auth: undefined;
@@ -110,16 +118,26 @@ function AppNavigator() {
   const initializeAuth = useAuthStore((state) => state.initializeAuth);
   const setSession = useAuthStore((state) => state.setSession);
   const { colors, isDark } = useTheme();
+  const savePushToken = useProfileStore((state) => state.savePushToken);
 
   useEffect(() => {
     initializeAuth();
-    const { data: authListener } = supabase.auth.onAuthStateChange((_event, currentSession) => {
-      setSession(currentSession);
-    });
+
+    const { data: authListener } = supabase.auth.onAuthStateChange(
+      async (_event, currentSession) => {
+        setSession(currentSession);
+        if (currentSession?.user) {
+          const token = await registerForPushNotificationsAsync();
+          if (token) {
+            savePushToken(token);
+          }
+        }
+      },
+    );
     return () => {
       authListener.subscription.unsubscribe();
     };
-  }, [initializeAuth, setSession]);
+  }, [initializeAuth, setSession, savePushToken]);
 
   if (!isInitialized) {
     return (

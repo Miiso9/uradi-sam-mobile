@@ -247,6 +247,10 @@ export default function AIChatScreen() {
 
         if (json.status === 'completed' || json.status === 'success') {
           setActiveTaskId(null);
+
+          Alert.alert('AI Majstor', 'Analiza je gotova! Pogledaj rješenje.');
+          Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+
           setMessages((prev) =>
             prev.map((msg) =>
               msg.isLoading ? { ...msg, isLoading: false, aiData: json.result as AIResult } : msg,
